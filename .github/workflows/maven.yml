@@ -2,9 +2,9 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ "master" ]  # Changé de "main" à "master"
+    branches: [ "master" ]
   pull_request:
-    branches: [ "master" ]  # Changé de "main" à "master"
+    branches: [ "master" ]
 
 jobs:
   build:
@@ -32,10 +32,11 @@ jobs:
       run: |
         sudo cp target/*.war $CATALINA_HOME/webapps/
         sudo $CATALINA_HOME/bin/catalina.sh start
-      if: github.ref == 'refs/heads/master' 
+      if: github.ref == 'refs/heads/master'
       
     - name: Upload test results
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4  # Changé de v3 à v4
+      if: always()
       with:
         name: test-results
         path: target/surefire-reports
