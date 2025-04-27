@@ -14,6 +14,7 @@ jobs:
         image: tomcat:10.1-jdk17
         ports:
           - 8080:8080
+        options: --health-cmd "curl -f http://localhost:8080/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - uses: actions/checkout@v4
@@ -28,14 +29,21 @@ jobs:
     - name: Build and test
       run: mvn -B clean package
       
-    - name: Deploy to Tomcat (optional)
+    - name: Deploy to Tomcat
       run: |
-        sudo cp target/*.war $CATALINA_HOME/webapps/
-        sudo $CATALINA_HOME/bin/catalina.sh start
+        WAR_FILE=$(ls target/*.war | head -1)
+        docker exec tomcat mkdir -p /usr/local/tomcat/webapps
+        docker cp $WAR_FILE tomcat:/usr/local/tomcat/webapps/
+        docker exec tomcat catalina.sh start
       if: github.ref == 'refs/heads/master'
       
+    - name: Verify deployment
+      run: |
+        sleep 10  # Attente du démarrage de Tomcat
+        docker exec tomcat curl --retry 5 --retry-delay 10 --retry-connrefused http://localhost:8080/manager/text/list
+      
     - name: Upload test results
-      uses: actions/upload-artifact@v4  # Changé de v3 à v4
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: test-results
