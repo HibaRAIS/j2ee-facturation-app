@@ -1,0 +1,41 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: [ "master" ]  # Changé de "main" à "master"
+  pull_request:
+    branches: [ "master" ]  # Changé de "main" à "master"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      tomcat:
+        image: tomcat:10.1-jdk17
+        ports:
+          - 8080:8080
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: 'maven'
+    
+    - name: Build and test
+      run: mvn -B clean package
+      
+    - name: Deploy to Tomcat (optional)
+      run: |
+        sudo cp target/*.war $CATALINA_HOME/webapps/
+        sudo $CATALINA_HOME/bin/catalina.sh start
+      if: github.ref == 'refs/heads/master' 
+      
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: target/surefire-reports
