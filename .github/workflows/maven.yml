@@ -9,13 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    services:
-      tomcat:
-        image: tomcat:10.1-jdk17
-        ports:
-          - 8080:8080
-        options: --health-cmd "curl -f http://localhost:8080/ || exit 1" --health-interval 10s --health-timeout 5s --health-retries 5
-
+    
     steps:
     - uses: actions/checkout@v4
     
@@ -29,22 +23,25 @@ jobs:
     - name: Build and test
       run: mvn -B clean package
       
+    - name: Start Tomcat
+      run: |
+        docker run -d --name tomcat -p 8080:8080 tomcat:10.1-jdk17
+        sleep 10  # Attendre que Tomcat démarre
+        
     - name: Deploy to Tomcat
       run: |
         WAR_FILE=$(ls target/*.war | head -1)
-        docker exec tomcat mkdir -p /usr/local/tomcat/webapps
         docker cp $WAR_FILE tomcat:/usr/local/tomcat/webapps/
         docker exec tomcat catalina.sh start
-      if: github.ref == 'refs/heads/master'
-      
+        sleep 5  # Attendre que l'application se déploie
+        
     - name: Verify deployment
       run: |
-        sleep 10  # Attente du démarrage de Tomcat
-        docker exec tomcat curl --retry 5 --retry-delay 10 --retry-connrefused http://localhost:8080/manager/text/list
-      
+        curl --retry 5 --retry-delay 5 --retry-connrefused http://localhost:8080/manager/text/list
+        
     - name: Upload test results
+      if: success() || failure()
       uses: actions/upload-artifact@v4
-      if: always()
       with:
         name: test-results
         path: target/surefire-reports
